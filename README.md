@@ -5,6 +5,11 @@
 
 ![seq_det](https://github.com/SaiEshwarReddyYellu/VHDL_projects/blob/main/UART_RX/uart_rx_wav.JPG)
 
+## LCD_driver
+- Initialized and displayed Characters on LCD using kc705 board
+
+![seq_det](https://github.com/SaiEshwarReddyYellu/VHDL_projects/blob/main/LCD_driver/lcd_driver_waveform.PNG)
+
 ## SPI
 - Serial Peripheral Interface (SPI) is a synchronous communication protocol for devices to communicate in a master-slave relationship
 
