@@ -1,5 +1,9 @@
 # VHDL
 
+## 2D_convolution used in image processing
+- A 5*5 image matrix is convoluted with 3*3 kernel matrix.
+
+
 ## UART_RX
 - UART Receiver with 8 bit data and 115.2 kbps bit rate.
 
