@@ -1,0 +1,209 @@
+----------------------------------------------------------------------------------
+-- Company: 
+-- Engineer: 
+-- 
+-- Create Date: 05.05.2022 09:41:58
+-- Design Name: 
+-- Module Name: sensor_tb - Behavioral
+-- Project Name: 
+-- Target Devices: 
+-- Tool Versions: 
+-- Description: 
+-- 
+-- Dependencies: 
+-- 
+-- Revision:
+-- Revision 0.01 - File Created
+-- Additional Comments:
+-- 
+----------------------------------------------------------------------------------
+
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use ieee.std_logic_arith.all;
+USE ieee.numeric_std.ALL;
+use ieee.std_logic_unsigned.all;
+
+
+library std;
+use std.textio.all;
+use IEEE.std_logic_textio.all; 
+-- Uncomment the following library declaration if using
+-- arithmetic functions with Signed or Unsigned values
+--use IEEE.NUMERIC_STD.ALL;
+
+-- Uncomment the following library declaration if instantiating
+-- any Xilinx leaf cells in this code.
+--library UNISIM;
+--use UNISIM.VComponents.all;
+
+entity sensor_tb is
+--  Port ( );
+end sensor_tb;
+
+architecture Behavioral of sensor_tb is
+
+signal clk,rst : std_logic := '0';
+
+signal i_data_valid : std_logic;
+signal i_data : std_logic_vector(7 downto 0) := (others => '0');
+signal o_data_ready : std_logic := '0';
+
+signal o_data_valid_i : std_logic := '0';
+signal o_data_i : std_logic_vector(7 downto 0) :=(others =>'0');
+signal i_data_ready : std_logic := '1';
+
+signal intr_out : std_logic := '0';
+
+---
+--438 hexadecimal bytes in header(contains file infor about pixel size, resolution etc) so 
+    -- removing header pixels and writting direct to output file for checking.
+    --only pixels are processed to IP
+
+constant headsize : integer := 1080;
+constant imagesize : integer := 512*512;
+signal sentsize : integer;
+
+----
+signal c,i : integer := 0;
+signal output_chek : character;
+signal output_inte,received_data : integer := 0;
+
+type enum_type is(started, done);
+signal output_flag : enum_type;
+
+type file_element_type is record
+    stimuli : character;
+    expexted_output : integer;
+end record;
+signal current_element : file_element_type;
+
+type char_file is file of file_element_type;
+file bmp_file : char_file;  -- open read_mode is "C:/Users/Sai.Yellu/project_11_vipin_example/project_11_vipin_example.sim/sim_1/behav/xsim/lena_gray.bmp";                              --file
+file out_bmp_file : char_file ; -- open write_mode is "C:/Users/Sai.Yellu/project_10_2D_convolution_hardware\lena_output.h"; --image_data.h          --file2
+
+file blurred_image : char_file ;    --open write_mode is "C:/Users/Sai.Yellu/project_10_2D_convolution_hardware\lena_output_image.bmp";                --file1
+
+
+
+begin
+    clk <= not clk after 5ns;
+    
+
+uut1: entity work.top_file
+    port map(
+        axi_clk  => clk,
+        axi_rstn => rst,
+        i_data_valid => i_data_valid,
+        i_data => i_data,
+        o_data_ready => o_data_ready,
+        o_data_valid => o_data_valid_i,
+        o_data => o_data_i,
+        i_data_ready => i_data_ready,
+        intr_out => intr_out
+                );
+                
+    
+    process
+        variable fstatus : file_open_status;
+    begin  
+        rst <= '0';
+        sentsize <= 0;
+        i_data_valid <= '0';
+        
+        wait for 50ns;
+        rst <='1';
+        
+        wait for 50ns;
+        file_open(fstatus, bmp_file, "C:/Users/Sai.Yellu/project_11_vipin_example/project_11_vipin_example.sim/sim_1/behav/xsim/lena_gray.bmp", read_mode);
+        file_open(fstatus, out_bmp_file, "C:/Users/Sai.Yellu/project_10_2D_convolution_hardware/lena_output.h", write_mode);
+        file_open(fstatus, blurred_image, "C:/Users/Sai.Yellu/project_10_2D_convolution_hardware/lena_output_image.bmp", write_mode);
+        
+        for i in 1 to headsize loop
+         read(bmp_file,current_element);  
+         write(blurred_image,current_element); 
+        end loop;
+        
+        for i in 1 to 4*512 loop    
+         read(bmp_file,current_element); 
+         write(out_bmp_file,current_element);  
+--         i_data <= conv_std_logic_vector(character'pos(current_element.expexted_output),i_data'length);
+           i_data <= std_logic_vector(to_unsigned(current_element.expexted_output,i_data'length));
+         i_data_valid <= '1';
+         wait until rising_edge(clk);
+        end loop;
+     
+     sentsize <= 4*512;
+            
+        wait until rising_edge(clk);     
+            i_data_valid <= '0';
+            
+           while (sentsize < imagesize) loop
+               wait until (intr_out = '1');    
+                   for i in 0 to 511 loop
+                       wait until rising_edge(clk);
+                           read(bmp_file,current_element); 
+                           write(out_bmp_file,current_element);  
+    --                       output_chek <= current_element.expexted_output;
+    --                       i_data <= conv_std_logic_vector(integer'pos(c),i_data'length);
+                            i_data <= std_logic_vector(to_unsigned(current_element.expexted_output,i_data'length));
+                           i_data_valid <= '1';     
+                   end loop;  
+               wait until rising_edge(clk);
+                   i_data_valid <= '0';
+                   sentsize <= sentsize + 512;
+--               end if;                    
+           end loop;
+      
+         
+         wait until rising_edge(clk); 
+         i_data_valid <= '0';
+                
+                 
+            wait until (intr_out = '1'); 
+              for i in 0 to 511 loop 
+                  wait until rising_edge(clk);  
+                   i_data <= x"00";
+                   i_data_valid <= '1'; 
+--                   write(out_bmp_file,0);    
+              end loop;
+              wait until rising_edge(clk); 
+               i_data_valid <= '0';
+            
+
+            wait until (intr_out = '1'); 
+              for i in 0 to 511 loop 
+                  wait until rising_edge(clk);  
+                   i_data <= x"00";
+                   i_data_valid <= '1'; 
+--                   write(out_bmp_file,0);    
+              end loop;
+              wait until rising_edge(clk); 
+               i_data_valid <= '0';
+
+               
+            file_close(bmp_file); 
+            file_close(out_bmp_file);   
+
+        
+        if rising_edge(clk) then
+            if o_data_valid_i = '1' then
+                received_data <= received_data + 1;
+--                output_inte <= to_integer(to_unsigned(o_data_i));
+--                write(blurred_image,output_inte);
+            end if;
+            
+            if received_data = imagesize then
+               wait;
+               report("simulation is done");
+               output_flag <= done;
+               else
+               output_flag <= started;
+            end if;
+        end if;
+      
+    wait;
+--    std.env.finish;   
+    end process;
+end Behavioral;
